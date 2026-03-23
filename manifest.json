@@ -1,0 +1,21 @@
+{
+    "name": "Songbook of Tyria",
+    "version": "0.1.0",
+    "namespace": "Originals.GW2.SongbookOfTyria",
+    "package": "SongbookOfTyria.dll",
+    "manifest_version": 1,
+    "description": "Browse and view songs from the GW2 Opus songbook for manually playing music.",
+    "dependencies": {
+        "bh.blishhud": ">=1.2.0"
+    },
+    "url": "https://www.gw2opus.com/songbook/",
+    "contributors": [
+        {
+            "name": "Ori",
+            "username": "Originals.8492",
+            "url": "https://www.gw2opus.com/user/ori/"
+        }
+    ],
+    "directories": [ "songbook_cache" ],
+    "enabled_without_gw2": false
+}

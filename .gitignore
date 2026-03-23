@@ -1,0 +1,14 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Copilot instructions
+.github/copilot-instructions.md
+
+# Launch settings
+Properties/launchSettings.json
