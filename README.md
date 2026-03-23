@@ -6,7 +6,7 @@
 
 <p align="center">
   <em>
-    A <a href="https://blishhud.com">Blish HUD</a> module for Guild Wars 2 that provides music tabs and notation for playing in-game instruments.
+    A <a href="https://blishhud.com">Blish HUD</a> module for Guild Wars 2 that provides music tabs for playing in-game instruments.
   </em>
 </p>
 
@@ -23,9 +23,7 @@
 - [Piano Keybinds](#piano-keybinds)
 - [Audio Playback](#audio-playback)
 - [Settings](#settings)
-- [Known Limitations](#known-limitations)
 - [Feedback](#feedback)
-- [License](#license)
 
 ---
 
