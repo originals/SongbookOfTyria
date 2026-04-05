@@ -2,6 +2,13 @@
 
 All notable changes to Songbook of Tyria will be documented in this file.
 
+## [1.0.0]
+
+### Added
+- About page
+- Practise mode
+
+
 ## [0.1.0]
 
 ### Added

@@ -25,12 +25,13 @@ namespace SongbookOfTyria.UI.Views
         private const int VerticalPadding = 10;
         private const int LeftPadding = 50;
 
-        private readonly TabsCacheService _tabsCacheService;
+        private readonly TabsService _tabsService;
         private readonly UserSettingsService _userSettingsService;
         private readonly GuildAuthService _guildAuthService;
+        private readonly TextureService _textureService;
         private readonly MusicTabFilter _filter;
         private readonly MusicTabSorter _sorter;
-        private readonly TabCardListManager _cardManager;
+        private TabCardListManager _cardManager;
 
         private FlowPanel _filterPanel;
         private Panel _contentContainer;
@@ -41,7 +42,6 @@ namespace SongbookOfTyria.UI.Views
         private Label _errorLabel;
         private Container _parentContainer;
 
-        // Filter checkboxes
         private Checkbox _soloCheckbox;
         private Checkbox _duetCheckbox;
         private Checkbox _bandCheckbox;
@@ -51,24 +51,19 @@ namespace SongbookOfTyria.UI.Views
         private Checkbox _favoritesCheckbox;
         private StandardButton _resetButton;
 
-        // Visibility filter (for authenticated users)
         private FlowPanel _visibilityPanel;
         private Checkbox _publicCheckbox;
         private Checkbox _privateCheckbox;
 
-        // Genre filter
         private FlowPanel _genrePanel;
         private readonly Dictionary<string, Checkbox> _genreCheckboxes = new Dictionary<string, Checkbox>();
 
-        // Collapsible filter panels (for state persistence)
         private FlowPanel _tabTypePanel;
         private FlowPanel _featuresPanel;
 
-        // Tabbed By filter
         private FlowPanel _tabberPanel;
         private readonly Dictionary<string, Checkbox> _tabberCheckboxes = new Dictionary<string, Checkbox>();
 
-        // Sort buttons
         private StandardButton _sortByNameButton;
         private StandardButton _sortByDateButton;
 
@@ -84,21 +79,17 @@ namespace SongbookOfTyria.UI.Views
         private readonly List<Checkbox> _filterCheckboxes = new List<Checkbox>();
 
         public SongLibraryView(
-            TabsCacheService tabsCacheService,
+            TabsService tabsService,
             TextureService textureService,
             UserSettingsService userSettingsService,
             GuildAuthService guildAuthService)
         {
-            _tabsCacheService = tabsCacheService;
+            _tabsService = tabsService;
+            _textureService = textureService;
             _userSettingsService = userSettingsService;
             _guildAuthService = guildAuthService;
             _filter = new MusicTabFilter { UserSettingsService = userSettingsService };
             _sorter = new MusicTabSorter();
-            _cardManager = new TabCardListManager(textureService, userSettingsService);
-            _cardManager.CardClicked += OnCardClicked;
-            _cardManager.FavoriteToggled += OnFavoriteToggled;
-            _cardManager.RenderingStarted += OnRenderingStarted;
-            _cardManager.RenderingCompleted += OnRenderingCompleted;
 
             var savedState = _userSettingsService.GetFilterState();
             RestoreFilterState(savedState);
@@ -109,8 +100,28 @@ namespace SongbookOfTyria.UI.Views
             }
         }
 
+        private void InitializeCardManager()
+        {
+            if (_cardManager != null)
+            {
+                _cardManager.CardClicked -= OnCardClicked;
+                _cardManager.FavoriteToggled -= OnFavoriteToggled;
+                _cardManager.RenderingStarted -= OnRenderingStarted;
+                _cardManager.RenderingCompleted -= OnRenderingCompleted;
+                _cardManager.Dispose();
+            }
+
+            _cardManager = new TabCardListManager(_textureService, _userSettingsService);
+            _cardManager.CardClicked += OnCardClicked;
+            _cardManager.FavoriteToggled += OnFavoriteToggled;
+            _cardManager.RenderingStarted += OnRenderingStarted;
+            _cardManager.RenderingCompleted += OnRenderingCompleted;
+        }
+
         protected override void Build(Container buildPanel)
         {
+            InitializeCardManager();
+
             _parentContainer = buildPanel;
             _parentContainer.Resized += OnParentResized;
 
@@ -247,20 +258,24 @@ namespace SongbookOfTyria.UI.Views
         {
             var savedState = _userSettingsService.GetFilterState();
 
-            if (_beginnerCheckbox != null) _beginnerCheckbox.Checked = savedState.BeginnerOnly;
-            if (_soloCheckbox != null) _soloCheckbox.Checked = savedState.SoloOnly;
-            if (_duetCheckbox != null) _duetCheckbox.Checked = savedState.DuetOnly;
-            if (_bandCheckbox != null) _bandCheckbox.Checked = savedState.BandOnly;
-            if (_pianoCheckbox != null) _pianoCheckbox.Checked = savedState.PianoOnly;
-            if (_practiceModeCheckbox != null) _practiceModeCheckbox.Checked = savedState.PracticeModeOnly;
-            if (_favoritesCheckbox != null) _favoritesCheckbox.Checked = savedState.FavoritesOnly;
-            if (_publicCheckbox != null) _publicCheckbox.Checked = savedState.PublicOnly;
-            if (_privateCheckbox != null) _privateCheckbox.Checked = savedState.PrivateOnly;
+            SetCheckboxState(_beginnerCheckbox, savedState.BeginnerOnly);
+            SetCheckboxState(_soloCheckbox, savedState.SoloOnly);
+            SetCheckboxState(_duetCheckbox, savedState.DuetOnly);
+            SetCheckboxState(_bandCheckbox, savedState.BandOnly);
+            SetCheckboxState(_pianoCheckbox, savedState.PianoOnly);
+            SetCheckboxState(_practiceModeCheckbox, savedState.PracticeModeOnly);
+            SetCheckboxState(_favoritesCheckbox, savedState.FavoritesOnly);
+            SetCheckboxState(_publicCheckbox, savedState.PublicOnly);
+            SetCheckboxState(_privateCheckbox, savedState.PrivateOnly);
 
-            // Restore panel collapsed states
             RestorePanelCollapsedStates(savedState.CollapsedPanels);
 
             UpdateSortButtonStates();
+        }
+
+        private static void SetCheckboxState(Checkbox checkbox, bool isChecked)
+        {
+            if (checkbox != null) checkbox.Checked = isChecked;
         }
 
         private void RestorePanelCollapsedStates(Dictionary<string, bool> collapsedPanels)
@@ -332,13 +347,11 @@ namespace SongbookOfTyria.UI.Views
         {
             var savedState = _userSettingsService.GetFilterState();
 
-            // Restore genre selections
             foreach (var kvp in _genreCheckboxes)
             {
                 kvp.Value.Checked = savedState.SelectedGenres?.Contains(kvp.Key) ?? false;
             }
 
-            // Restore tabber selections
             foreach (var kvp in _tabberCheckboxes)
             {
                 kvp.Value.Checked = savedState.SelectedTabbers?.Contains(kvp.Key) ?? false;
@@ -370,15 +383,15 @@ namespace SongbookOfTyria.UI.Views
 
         private void OnResetFiltersClicked(object sender, Blish_HUD.Input.MouseEventArgs e)
         {
-            if (_beginnerCheckbox != null) _beginnerCheckbox.Checked = false;
-            if (_soloCheckbox != null) _soloCheckbox.Checked = false;
-            if (_duetCheckbox != null) _duetCheckbox.Checked = false;
-            if (_bandCheckbox != null) _bandCheckbox.Checked = false;
-            if (_pianoCheckbox != null) _pianoCheckbox.Checked = false;
-            if (_practiceModeCheckbox != null) _practiceModeCheckbox.Checked = false;
-            if (_favoritesCheckbox != null) _favoritesCheckbox.Checked = false;
-            if (_publicCheckbox != null) _publicCheckbox.Checked = false;
-            if (_privateCheckbox != null) _privateCheckbox.Checked = false;
+            ResetCheckbox(_beginnerCheckbox);
+            ResetCheckbox(_soloCheckbox);
+            ResetCheckbox(_duetCheckbox);
+            ResetCheckbox(_bandCheckbox);
+            ResetCheckbox(_pianoCheckbox);
+            ResetCheckbox(_practiceModeCheckbox);
+            ResetCheckbox(_favoritesCheckbox);
+            ResetCheckbox(_publicCheckbox);
+            ResetCheckbox(_privateCheckbox);
 
             foreach (var checkbox in _genreCheckboxes.Values)
             {
@@ -398,6 +411,11 @@ namespace SongbookOfTyria.UI.Views
             }
 
             ApplyFiltersAndSort();
+        }
+
+        private static void ResetCheckbox(Checkbox checkbox)
+        {
+            if (checkbox != null) checkbox.Checked = false;
         }
 
         private void BuildTabTypeSection()
@@ -569,7 +587,7 @@ namespace SongbookOfTyria.UI.Views
 
         private void PopulateGenreCheckboxes()
         {
-            if (_allTabs == null || _genrePanel == null)
+            if (_allTabs == null || _genrePanel == null || _genreCheckboxes == null)
             {
                 return;
             }
@@ -590,6 +608,8 @@ namespace SongbookOfTyria.UI.Views
 
             foreach (var genreCount in genreCounts)
             {
+                if (string.IsNullOrEmpty(genreCount.Key)) continue;
+
                 var checkbox = new Checkbox
                 {
                     Text = $"{genreCount.Key} ({genreCount.Value})",
@@ -620,7 +640,7 @@ namespace SongbookOfTyria.UI.Views
 
         private void PopulateTabberCheckboxes()
         {
-            if (_allTabs == null || _tabberPanel == null)
+            if (_allTabs == null || _tabberPanel == null || _tabberCheckboxes == null)
             {
                 return;
             }
@@ -701,68 +721,28 @@ namespace SongbookOfTyria.UI.Views
 
         private void UpdateFilterCounts()
         {
-            if (_allTabs == null)
-            {
-                return;
-            }
+            if (_allTabs == null) return;
 
-            // Get the current filtered list (without the specific filter we're counting for)
             var currentFiltered = _displayedTabs ?? _allTabs;
 
-            // Count how many items match each filter from the current results
-            int beginnerCount = currentFiltered.Count(t => t.IsBeginner);
-            int soloCount = currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Solo"));
-            int duetCount = currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Duet"));
-            int bandCount = currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Band"));
-            int pianoCount = currentFiltered.Count(t => t.Piano);
-            int practiceModeCount = currentFiltered.Count(t => t.PracticeMode);
-            int favoritesCount = _userSettingsService != null
-                ? currentFiltered.Count(t => _userSettingsService.IsFavorite(t.Id))
-                : 0;
+            UpdateCheckboxText(_beginnerCheckbox, "Beginner Friendly", currentFiltered.Count(t => t.IsBeginner));
+            UpdateCheckboxText(_soloCheckbox, "Solo", currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Solo")));
+            UpdateCheckboxText(_duetCheckbox, "Duet", currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Duet")));
+            UpdateCheckboxText(_bandCheckbox, "Band", currentFiltered.Count(t => t.TabType != null && t.TabType.Contains("Band")));
+            UpdateCheckboxText(_pianoCheckbox, "Piano", currentFiltered.Count(t => t.Piano));
+            UpdateCheckboxText(_practiceModeCheckbox, "Practice Mode", currentFiltered.Count(t => t.PracticeMode));
+            UpdateCheckboxText(_favoritesCheckbox, "Favorites", _userSettingsService != null 
+                ? currentFiltered.Count(t => _userSettingsService.IsFavorite(t.Id)) 
+                : 0);
+            UpdateCheckboxText(_publicCheckbox, "Public", currentFiltered.Count(t => !t.IsPrivate));
+            UpdateCheckboxText(_privateCheckbox, "Private", currentFiltered.Count(t => t.IsPrivate));
 
-            if (_beginnerCheckbox != null)
-            {
-                _beginnerCheckbox.Text = $"Beginner Friendly ({beginnerCount})";
-            }
-
-            if (_soloCheckbox != null)
-            {
-                _soloCheckbox.Text = $"Solo ({soloCount})";
-            }
-
-            if (_duetCheckbox != null)
-            {
-                _duetCheckbox.Text = $"Duet ({duetCount})";
-            }
-
-            if (_bandCheckbox != null)
-            {
-                _bandCheckbox.Text = $"Band ({bandCount})";
-            }
-
-            if (_pianoCheckbox != null)
-            {
-                _pianoCheckbox.Text = $"Piano ({pianoCount})";
-            }
-
-            if (_practiceModeCheckbox != null)
-            {
-                _practiceModeCheckbox.Text = $"Practice Mode ({practiceModeCount})";
-            }
-
-            if (_favoritesCheckbox != null)
-            {
-                _favoritesCheckbox.Text = $"Favorites ({favoritesCount})";
-            }
-
-            // Update genre counts
             foreach (var kvp in _genreCheckboxes)
             {
                 int genreCount = currentFiltered.Count(t => t.Genre == kvp.Key);
                 kvp.Value.Text = $"{kvp.Key} ({genreCount})";
             }
 
-            // Update tabber counts
             foreach (var kvp in _tabberCheckboxes)
             {
                 int tabberCount = currentFiltered.Count(t => 
@@ -770,19 +750,11 @@ namespace SongbookOfTyria.UI.Views
                     (t.TabbedByMember != null && t.TabbedByMember.Contains(kvp.Key)));
                 kvp.Value.Text = $"{kvp.Key} ({tabberCount})";
             }
+        }
 
-            // Update visibility counts from current filtered results
-            if (_publicCheckbox != null)
-            {
-                int publicCount = currentFiltered.Count(t => !t.IsPrivate);
-                _publicCheckbox.Text = $"Public ({publicCount})";
-            }
-
-            if (_privateCheckbox != null)
-            {
-                int privateCount = currentFiltered.Count(t => t.IsPrivate);
-                _privateCheckbox.Text = $"Private ({privateCount})";
-            }
+        private static void UpdateCheckboxText(Checkbox checkbox, string label, int count)
+        {
+            if (checkbox != null) checkbox.Text = $"{label} ({count})";
         }
 
         private void OnFilterCheckboxChanged(object sender, CheckChangedEvent e)
@@ -935,7 +907,6 @@ namespace SongbookOfTyria.UI.Views
         {
             if (_sorter.Mode == SortMode.Name)
             {
-                // Toggle direction
                 _sorter.Ascending = !_sorter.Ascending;
             }
             else
@@ -952,13 +923,12 @@ namespace SongbookOfTyria.UI.Views
         {
             if (_sorter.Mode == SortMode.ReleaseDate)
             {
-                // Toggle direction
                 _sorter.Ascending = !_sorter.Ascending;
             }
             else
             {
                 _sorter.Mode = SortMode.ReleaseDate;
-                _sorter.Ascending = false; // Default to newest first
+                _sorter.Ascending = false;
             }
 
             UpdateSortButtonStates();
@@ -984,8 +954,7 @@ namespace SongbookOfTyria.UI.Views
 
         private void RestoreOrLoadTabs()
         {
-            // First check if we have cached data from service (preloaded on startup)
-            var cachedResponse = _tabsCacheService.GetCachedTabs();
+            var cachedResponse = _tabsService.GetCachedTabs();
             if (cachedResponse?.Tabs != null && cachedResponse.Tabs.Count > 0)
             {
                 _allTabs = cachedResponse.Tabs;
@@ -994,7 +963,6 @@ namespace SongbookOfTyria.UI.Views
                 PopulateGenreCheckboxes();
                 PopulateTabberCheckboxes();
                 ApplyFiltersAndSort();
-                // Spinner is managed by RefreshCardList/HideLoadingSpinner
                 if (_errorLabel != null)
                 {
                     _errorLabel.Visible = false;
@@ -1015,28 +983,21 @@ namespace SongbookOfTyria.UI.Views
                 ShowLoading();
             }
             else if (!_hasLoaded)
-                {
-                    RefreshTabListWithErrorHandling();
-                }
+            {
+                RefreshTabListWithErrorHandling();
+            }
         }
 
         private void RestoreCachedTabs()
         {
             _displayedTabs = new List<MusicTab>(_allTabs);
             ApplyFiltersAndSort();
-            // Spinner is managed by RefreshCardList/HideLoadingSpinner
-            if (_errorLabel != null)
-            {
-                _errorLabel.Visible = false;
-            }
+            SetControlVisible(_errorLabel, false);
         }
 
         private void ShowError(string message)
         {
-            if (_loadingSpinner != null)
-            {
-                _loadingSpinner.Visible = false;
-            }
+            SetControlVisible(_loadingSpinner, false);
 
             if (_errorLabel != null)
             {
@@ -1044,23 +1005,18 @@ namespace SongbookOfTyria.UI.Views
                 _errorLabel.Visible = true;
             }
 
-            if (_cardsPanel != null)
-            {
-                _cardsPanel.Visible = false;
-            }
+            SetControlVisible(_cardsPanel, false);
         }
 
         private void ShowLoading()
         {
-            if (_loadingSpinner != null)
-            {
-                _loadingSpinner.Visible = true;
-            }
+            SetControlVisible(_loadingSpinner, true);
+            SetControlVisible(_errorLabel, false);
+        }
 
-            if (_errorLabel != null)
-            {
-                _errorLabel.Visible = false;
-            }
+        private static void SetControlVisible(Control control, bool visible)
+        {
+            if (control != null) control.Visible = visible;
         }
 
         private void ApplyFiltersAndSort()
@@ -1079,8 +1035,6 @@ namespace SongbookOfTyria.UI.Views
             UpdateFilterCounts();
             UpdateResetButtonState();
             RefreshCardList();
-
-            // Save filter state after applying
             SaveFilterState();
         }
 
@@ -1109,7 +1063,6 @@ namespace SongbookOfTyria.UI.Views
 
         private void UpdateFilterFromCheckboxes()
         {
-            // Apply filters based on checkbox states
             _filter.BeginnerOnly = _beginnerCheckbox?.Checked ?? false;
             _filter.SoloOnly = _soloCheckbox?.Checked ?? false;
             _filter.DuetOnly = _duetCheckbox?.Checked ?? false;
@@ -1136,7 +1089,7 @@ namespace SongbookOfTyria.UI.Views
                 return;
             }
 
-            _cardManager.RefreshCards(_displayedTabs);
+            _cardManager?.RefreshCards(_displayedTabs);
         }
 
         private void OnRenderingStarted(object sender, EventArgs e)
@@ -1151,28 +1104,14 @@ namespace SongbookOfTyria.UI.Views
 
         private void ShowLoadingSpinner()
         {
-            if (_loadingSpinner != null)
-            {
-                _loadingSpinner.Visible = true;
-            }
-
-            if (_cardsPanel != null)
-            {
-                _cardsPanel.Visible = false;
-            }
+            SetControlVisible(_loadingSpinner, true);
+            SetControlVisible(_cardsPanel, false);
         }
 
         private void HideLoadingSpinner()
         {
-            if (_loadingSpinner != null)
-            {
-                _loadingSpinner.Visible = false;
-            }
-
-            if (_cardsPanel != null)
-            {
-                _cardsPanel.Visible = true;
-            }
+            SetControlVisible(_loadingSpinner, false);
+            SetControlVisible(_cardsPanel, true);
         }
 
         private void OnFavoriteToggled(object sender, MusicTab tab)
@@ -1182,15 +1121,7 @@ namespace SongbookOfTyria.UI.Views
 
         private void OnCardClicked(object sender, MusicTab tab)
         {
-            if (_isOpeningTab)
-            {
-                return;
-            }
-
-            if (TabClicked == null)
-            {
-                return;
-            }
+            if (_isOpeningTab || TabClicked == null) return;
 
             _isOpeningTab = true;
             TabClicked.Invoke(this, tab);
@@ -1243,7 +1174,7 @@ namespace SongbookOfTyria.UI.Views
 
             PrepareForLoading();
 
-            var tabsResponse = await _tabsCacheService.GetTabsAsync().ConfigureAwait(false);
+            var tabsResponse = await _tabsService.GetTabsAsync().ConfigureAwait(false);
 
             _isLoading = false;
             _hasLoaded = true;
@@ -1271,7 +1202,7 @@ namespace SongbookOfTyria.UI.Views
                 _errorLabel.Visible = false;
             }
 
-            _cardManager.ClearAllCards();
+            _cardManager?.ClearAllCards();
         }
 
         private void HandleLoadError()
@@ -1316,15 +1247,6 @@ namespace SongbookOfTyria.UI.Views
         {
             SavePanelCollapsedStates();
 
-            if (_guildAuthService != null)
-                _guildAuthService.AuthStatusChanged -= OnAuthStatusChanged;
-
-            _cardManager.CardClicked -= OnCardClicked;
-            _cardManager.FavoriteToggled -= OnFavoriteToggled;
-            _cardManager.RenderingStarted -= OnRenderingStarted;
-            _cardManager.RenderingCompleted -= OnRenderingCompleted;
-            _cardManager.Dispose();
-
             if (_parentContainer != null)
                 _parentContainer.Resized -= OnParentResized;
 
@@ -1351,6 +1273,8 @@ namespace SongbookOfTyria.UI.Views
             foreach (var checkbox in _tabberCheckboxes.Values)
                 checkbox.CheckedChanged -= OnTabberCheckboxChanged;
             _tabberCheckboxes.Clear();
+
+            _cardManager?.ClearAllCards();
 
             base.Unload();
         }

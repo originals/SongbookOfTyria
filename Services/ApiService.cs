@@ -113,38 +113,6 @@ namespace SongbookOfTyria.Services
             }
         }
 
-        public async Task<MusicTab> GetTabBySlugAsync(string slug, bool includeSongs = true)
-        {
-            var url = $"{BaseUrl}albums/{slug}?include_songs={includeSongs.ToString().ToLower()}";
-
-            try
-            {
-                using (var request = CreateRequest(HttpMethod.Get, url))
-                {
-                    var httpResponse = await _httpClient.SendAsync(request).ConfigureAwait(false);
-
-                    if (!httpResponse.IsSuccessStatusCode)
-                    {
-                        Logger.Warn("GetTabBySlugAsync: HTTP request failed with status code {StatusCode}", httpResponse.StatusCode);
-                        return null;
-                    }
-
-                    var response = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    return JsonConvert.DeserializeObject<MusicTab>(response);
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                Logger.Warn(ex, "GetTabBySlugAsync: HTTP request failed");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "GetTabBySlugAsync: Failed to fetch tab {Slug}", slug);
-                return null;
-            }
-        }
-
         public async Task<MusicTab> GetTabByUrlAsync(string apiUrl, bool includeSongs = true)
         {
             if (string.IsNullOrEmpty(apiUrl))

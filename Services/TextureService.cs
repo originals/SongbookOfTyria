@@ -39,7 +39,7 @@ namespace SongbookOfTyria.Services
 
         #region GW2 Asset IDs
 
-        private const int WindowBackgroundAssetId = 155985;
+        public const int WindowBackgroundAssetId = 155985;
         private const int AboutIconAssetId = 440023;
         private const int SongLibraryIconAssetId = 102357;
         private const int OpenWindowIconAssetId = 155910;
@@ -48,6 +48,7 @@ namespace SongbookOfTyria.Services
         private const int VolumeMutedIconAssetId = 156739;
         private const int FavoriteFilledAssetId = 102439;
         private const int FavoriteEmptyAssetId = 102440;
+        private const int PracticeModeIconAssetId = 528696;
 
         #endregion
 
@@ -98,6 +99,7 @@ namespace SongbookOfTyria.Services
         public AsyncTexture2D GetVolumeMutedIcon() => GetAssetTexture(VolumeMutedIconAssetId);
         public AsyncTexture2D GetFavoriteFilledIcon() => GetAssetTexture(FavoriteFilledAssetId);
         public AsyncTexture2D GetFavoriteEmptyIcon() => GetAssetTexture(FavoriteEmptyAssetId);
+        public AsyncTexture2D GetPracticeModeIcon() => GetAssetTexture(PracticeModeIconAssetId);
 
         private static AsyncTexture2D GetAssetTexture(int assetId)
         {
@@ -130,7 +132,6 @@ namespace SongbookOfTyria.Services
                     if (!string.IsNullOrEmpty(tab.Thumbnail) && 
                         !tab.Thumbnail.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Just trigger the download to cache, don't create texture yet
                         await PreloadThumbnailToCacheAsync(tab.Thumbnail).ConfigureAwait(false);
                     }
                 }
@@ -146,7 +147,7 @@ namespace SongbookOfTyria.Services
 
                 if (File.Exists(filePath))
                 {
-                    return; // Already cached
+                    return;
                 }
 
                 var imageData = await _httpClient.GetByteArrayAsync(url).ConfigureAwait(false);

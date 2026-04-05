@@ -1,6 +1,6 @@
 {
     "name": "Songbook of Tyria",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "namespace": "Originals.GW2.SongbookOfTyria",
     "package": "SongbookOfTyria.dll",
     "manifest_version": 1,
@@ -14,6 +14,11 @@
             "name": "Ori",
             "username": "Originals.8492",
             "url": "https://www.gw2opus.com/user/ori/"
+        },
+        {
+            "name": "Moyya",
+            "username": "Moyya.7253",
+            "url": "https://www.gw2opus.com/user/moyya/"
         }
     ],
     "directories": [ "songbook_cache" ],

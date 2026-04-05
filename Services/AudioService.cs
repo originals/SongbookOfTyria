@@ -10,6 +10,8 @@ using Microsoft.Xna.Framework;
 
 using NAudio.Wave;
 
+using SongbookOfTyria.Utilities;
+
 namespace SongbookOfTyria.Services
 {
     public sealed class AudioService : IDisposable
@@ -18,6 +20,7 @@ namespace SongbookOfTyria.Services
 
         private readonly HttpClient _httpClient;
         private readonly string _cacheDirectory;
+        private readonly object _lock = new object();
 
         private WaveOutEvent _waveOut;
         private AudioFileReader _audioReader;
@@ -32,6 +35,7 @@ namespace SongbookOfTyria.Services
         public TimeSpan CurrentPosition => _audioReader?.CurrentTime ?? TimeSpan.Zero;
         public TimeSpan TotalDuration => _audioReader?.TotalTime ?? TimeSpan.Zero;
         public bool IsLoaded => _audioReader != null;
+        public float Volume => _waveOut?.Volume ?? 0f;
 
         public AudioService(string cacheDirectory)
         {
@@ -78,6 +82,7 @@ namespace SongbookOfTyria.Services
             DisposeCurrentAudio();
 
             _loadCts?.Cancel();
+            _loadCts?.Dispose();
             _loadCts = new CancellationTokenSource();
 
             try
@@ -142,7 +147,7 @@ namespace SongbookOfTyria.Services
 
         private string GetCacheFileName(string url)
         {
-            var hash = GetStableHashCode(url).ToString("X8");
+            var hash = HashUtility.GetStableHashCode(url).ToString("X8");
             var extension = ".mp3";
 
             try
@@ -164,93 +169,92 @@ namespace SongbookOfTyria.Services
             return $"audio_{hash}{extension}";
         }
 
-        private static uint GetStableHashCode(string str)
-        {
-            unchecked
-            {
-                uint hash = 2166136261;
-                foreach (char c in str)
-                {
-                    hash = (hash ^ c) * 16777619;
-                }
-                return hash;
-            }
-        }
-
         public void Play()
         {
-            if (_waveOut == null || _audioReader == null)
+            lock (_lock)
             {
-                return;
-            }
+                if (_waveOut == null || _audioReader == null)
+                {
+                    return;
+                }
 
-            try
-            {
-                _waveOut.Play();
-                OnStateChanged(AudioPlaybackState.Playing);
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to play audio");
+                try
+                {
+                    _waveOut.Play();
+                    OnStateChanged(AudioPlaybackState.Playing);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "Failed to play audio");
+                }
             }
         }
 
         public void Pause()
         {
-            if (_waveOut == null)
+            lock (_lock)
             {
-                return;
-            }
+                if (_waveOut == null)
+                {
+                    return;
+                }
 
-            try
-            {
-                _waveOut.Pause();
-                OnStateChanged(AudioPlaybackState.Paused);
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to pause audio");
+                try
+                {
+                    _waveOut.Pause();
+                    OnStateChanged(AudioPlaybackState.Paused);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "Failed to pause audio");
+                }
             }
         }
 
         public void Stop()
         {
-            if (_waveOut == null)
+            lock (_lock)
             {
-                return;
-            }
-
-            try
-            {
-                _waveOut.Stop();
-                if (_audioReader != null)
+                if (_waveOut == null)
                 {
-                    _audioReader.Position = 0;
+                    return;
                 }
-                OnStateChanged(AudioPlaybackState.Stopped);
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to stop audio");
+
+                try
+                {
+                    _waveOut.Stop();
+                    if (_audioReader != null)
+                    {
+                        _audioReader.Position = 0;
+                    }
+                    OnStateChanged(AudioPlaybackState.Stopped);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "Failed to stop audio");
+                }
             }
         }
 
         public void Seek(TimeSpan position)
         {
-            if (_audioReader == null)
+            lock (_lock)
             {
-                return;
-            }
+                if (_audioReader == null)
+                {
+                    return;
+                }
 
-            try
-            {
-                long clampedTicks = Math.Max(0L, Math.Min(position.Ticks, _audioReader.TotalTime.Ticks));
-                _audioReader.CurrentTime = TimeSpan.FromTicks(clampedTicks);
-                OnPositionChanged();
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to seek audio");
+                try
+                {
+                    var clampedSeconds = MathHelper.Clamp((float)position.TotalSeconds, 0f, (float)_audioReader.TotalTime.TotalSeconds);
+                    _audioReader.CurrentTime = TimeSpan.FromSeconds(clampedSeconds);
+                    OnPositionChanged();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "Failed to seek audio");
+                }
             }
         }
 
@@ -266,7 +270,9 @@ namespace SongbookOfTyria.Services
 
         public void UpdatePosition()
         {
-            if (_audioReader != null && _waveOut?.PlaybackState == NAudio.Wave.PlaybackState.Playing)
+            var reader = _audioReader;
+            var output = _waveOut;
+            if (reader != null && output?.PlaybackState == NAudio.Wave.PlaybackState.Playing)
             {
                 OnPositionChanged();
             }

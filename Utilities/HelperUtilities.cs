@@ -1,8 +1,24 @@
 using Microsoft.Xna.Framework;
 
-namespace SongbookOfTyria.UI.Utilities
+namespace SongbookOfTyria.Utilities
 {
-    public static class ImageSizeCalculator
+    internal static class HashUtility
+    {
+        public static uint GetStableHashCode(string str)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in str)
+                {
+                    hash = (hash ^ c) * 16777619;
+                }
+                return hash;
+            }
+        }
+    }
+
+    internal static class ImageSizeCalculator
     {
         public static Point CalculateAspectRatioSize(
             int originalWidth,

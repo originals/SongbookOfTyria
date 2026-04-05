@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Blish_HUD;
@@ -8,17 +9,18 @@ using SongbookOfTyria.Models.Api;
 
 namespace SongbookOfTyria.Services
 {
-    public sealed class TabsCacheService
+    public sealed class TabsService
     {
-        private static readonly Logger Logger = Logger.GetLogger<TabsCacheService>();
+        private static readonly Logger Logger = Logger.GetLogger<TabsService>();
 
         private readonly ApiService _apiService;
+        private readonly SemaphoreSlim _refreshLock = new SemaphoreSlim(1, 1);
 
         private TabsResponse _cachedTabsResponse;
 
         public event EventHandler<TabsResponse> TabsLoaded;
 
-        public TabsCacheService(ApiService apiService)
+        public TabsService(ApiService apiService)
         {
             _apiService = apiService;
             _ = InitializeAsync();
@@ -31,6 +33,7 @@ namespace SongbookOfTyria.Services
 
         private async Task PreloadTabsFromApiAsync()
         {
+            await _refreshLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 Logger.Info("Preloading tabs from API...");
@@ -47,6 +50,10 @@ namespace SongbookOfTyria.Services
             {
                 Logger.Warn(ex, "Failed to preload tabs from API");
             }
+            finally
+            {
+                _refreshLock.Release();
+            }
         }
 
         public async Task RefreshTabsAsync()
@@ -61,15 +68,11 @@ namespace SongbookOfTyria.Services
 
         public async Task<TabsResponse> GetTabsAsync(string type = "all", string beginner = "all", string search = null)
         {
-            // Return cached data immediately if available - don't wait for API
             if (_cachedTabsResponse?.Tabs != null && _cachedTabsResponse.Tabs.Count > 0)
             {
-                // Refresh in background for next time
                 _ = RefreshTabsInBackgroundAsync(type, beginner, search);
                 return _cachedTabsResponse;
             }
-
-            // No cache available, must fetch from API
             var freshResponse = await _apiService.GetTabsAsync(type, beginner, search).ConfigureAwait(false);
 
             if (freshResponse == null)

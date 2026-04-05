@@ -12,3 +12,4 @@ obj/
 
 # Launch settings
 Properties/launchSettings.json
+/packages

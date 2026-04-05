@@ -98,7 +98,7 @@ namespace SongbookOfTyria.Services
         public void SaveGlobalAudioPlayerCollapsed(bool collapsed)
         {
             _state.GlobalAudioPlayerCollapsed = collapsed;
-                    SaveState();
+            SaveState();
         }
 
         public bool GetGlobalPianoKeybindsCollapsed()
@@ -109,6 +109,39 @@ namespace SongbookOfTyria.Services
         public void SaveGlobalPianoKeybindsCollapsed(bool collapsed)
         {
             _state.GlobalPianoKeybindsCollapsed = collapsed;
+            SaveState();
+        }
+
+        public bool GetGlobalPlaybackCollapsed()
+        {
+            return _state.GlobalPlaybackCollapsed;
+        }
+
+        public void SaveGlobalPlaybackCollapsed(bool collapsed)
+        {
+            _state.GlobalPlaybackCollapsed = collapsed;
+            SaveState();
+        }
+
+        public bool GetHitDetectionFeedbackEnabled()
+        {
+            return _state.HitDetectionFeedbackEnabled;
+        }
+
+        public void SaveHitDetectionFeedbackEnabled(bool enabled)
+        {
+            _state.HitDetectionFeedbackEnabled = enabled;
+            SaveState();
+        }
+
+        public int GetSelectedMainWindowTabIndex()
+        {
+            return _state.SelectedMainWindowTabIndex;
+        }
+
+        public void SaveSelectedMainWindowTabIndex(int index)
+        {
+            _state.SelectedMainWindowTabIndex = index;
             SaveState();
         }
 
@@ -124,6 +157,26 @@ namespace SongbookOfTyria.Services
         public void SavePianoKeybinds(PianoKeybinds keybinds)
         {
             _state.PianoKeybinds = keybinds;
+            SaveState();
+        }
+
+        #endregion
+
+        #region Practice Mode State
+
+        public PracticeModeState GetPracticeModeState(int tabId)
+        {
+            if (_state.PracticeModeStates.TryGetValue(tabId, out var state))
+            {
+                return state;
+            }
+
+            return null;
+        }
+
+        public void SavePracticeModeState(int tabId, PracticeModeState state)
+        {
+            _state.PracticeModeStates[tabId] = state;
             SaveState();
         }
 
@@ -216,24 +269,29 @@ namespace SongbookOfTyria.Services
 
         public bool GlobalPianoKeybindsCollapsed { get; set; }
 
+        public bool GlobalPlaybackCollapsed { get; set; }
+
+        public bool HitDetectionFeedbackEnabled { get; set; } = false;
+
+        public int SelectedMainWindowTabIndex { get; set; }
+
         public PianoKeybinds PianoKeybinds { get; set; } = new PianoKeybinds();
 
         public HashSet<int> Favorites { get; set; } = new HashSet<int>();
+
+        public Dictionary<int, PracticeModeState> PracticeModeStates { get; set; } = new Dictionary<int, PracticeModeState>();
     }
 
     public class FilterState
     {
         public string SearchText { get; set; } = string.Empty;
 
-        // Tab Type filters
         public bool SoloOnly { get; set; }
         public bool DuetOnly { get; set; }
         public bool BandOnly { get; set; }
 
-        // Difficulty filter
         public bool BeginnerOnly { get; set; }
 
-        // Features filters
         public bool PracticeModeOnly { get; set; }
         public bool PianoOnly { get; set; }
         public bool FavoritesOnly { get; set; }
@@ -261,6 +319,7 @@ namespace SongbookOfTyria.Services
         public NotationFontSize FontSize { get; set; } = NotationFontSize.Size20;
         public bool AutoScrollEnabled { get; set; }
         public float ScrollSpeed { get; set; } = 30f;
+        public bool IsPracticeMode { get; set; }
 
         public Point GetLocation()
         {
@@ -283,5 +342,27 @@ namespace SongbookOfTyria.Services
             Width = size.X;
             Height = size.Y;
         }
+    }
+
+    public class PracticeModeState
+    {
+        public float MasterVolume { get; set; } = 1.0f;
+        public bool MasterMuted { get; set; }
+        public int SelectedTrackIndex { get; set; }
+        public float PlaybackSpeed { get; set; } = 1.0f;
+        public Dictionary<int, TrackVolumeState> TrackStates { get; set; } = new Dictionary<int, TrackVolumeState>();
+        public List<SavedMarker> Markers { get; set; } = new List<SavedMarker>();
+    }
+
+    public class SavedMarker
+    {
+        public double Time { get; set; }
+        public int ColorIndex { get; set; }
+    }
+
+    public class TrackVolumeState
+    {
+        public float Volume { get; set; } = 1.0f;
+        public bool Muted { get; set; }
     }
 }

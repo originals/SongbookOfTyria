@@ -20,7 +20,6 @@ namespace SongbookOfTyria.Services
         private const string AuthVerifyEndpoint = "auth/verify";
         private const int TimeoutSeconds = 30;
 
-        // Format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
         private const int ExpectedApiKeyLength = 72;
         private static readonly Regex ApiKeyPattern = new Regex(
             @"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{20}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$",

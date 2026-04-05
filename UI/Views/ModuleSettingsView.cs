@@ -4,6 +4,8 @@ using Blish_HUD;
 using Blish_HUD.Controls;
 using Blish_HUD.Graphics.UI;
 using Blish_HUD.Input;
+using Blish_HUD.Settings;
+using Blish_HUD.Settings.UI.Views;
 
 using Microsoft.Xna.Framework;
 
@@ -22,8 +24,6 @@ namespace SongbookOfTyria.UI.Views
 
         private readonly ModuleSettings _moduleSettings;
         private FlowPanel _settingsPanel;
-        private StandardButton _refreshButton;
-        private Label _cacheStatusLabel;
         private Label _authStatusLabel;
         private Checkbox _enableGuildAuthCheckbox;
         private TextBox _apiKeyTextBox;
@@ -42,70 +42,67 @@ namespace SongbookOfTyria.UI.Views
                 FlowDirection = ControlFlowDirection.SingleTopToBottom,
                 ControlPadding = new Vector2(5, 10),
                 OuterControlPadding = new Vector2(10, 10),
+                CanScroll = true,
                 Parent = buildPanel
             };
 
-            BuildRefreshSection();
-            BuildSettingsEntries();
-            BuildAuthStatusSection();
+            buildPanel.ChildAdded += (s, e) =>
+            {
+                if (e.ChangedChild is Scrollbar scrollbar)
+                {
+                    scrollbar.ZIndex = int.MaxValue;
+                }
+            };
 
-            _moduleSettings.CacheStatusChanged += OnCacheStatusChanged;
+            BuildGuildAuthSection();
+            // will be added in later version
+            //BuildKeybindSection("Instrument Keys", new[]
+            //{
+            //    _moduleSettings.NoteC,
+            //    _moduleSettings.NoteD,
+            //    _moduleSettings.NoteE,
+            //    _moduleSettings.NoteF,
+            //    _moduleSettings.NoteG,
+            //    _moduleSettings.NoteA,
+            //    _moduleSettings.NoteB,
+            //    _moduleSettings.NoteCHigh,
+            //    _moduleSettings.OctaveDown,
+            //    _moduleSettings.OctaveUp,
+            //    _moduleSettings.SharpCs,
+            //    _moduleSettings.SharpDs,
+            //    _moduleSettings.SharpFs,
+            //    _moduleSettings.SharpGs,
+            //    _moduleSettings.SharpAs
+            //});
+
             _moduleSettings.AuthStatusChanged += OnAuthStatusChanged;
         }
 
-        private void BuildRefreshSection()
+        private void BuildGuildAuthSection()
         {
-            var refreshPanel = new FlowPanel
+            var sectionPanel = new FlowPanel
             {
-                Width = _settingsPanel.ContentRegion.Width - 20,
-                HeightSizingMode = SizingMode.AutoSize,
-                FlowDirection = ControlFlowDirection.SingleLeftToRight,
-                ControlPadding = new Vector2(10, 0),
-                Parent = _settingsPanel
-            };
-
-            _refreshButton = new StandardButton
-            {
-                Text = "Refresh Data",
-                Width = 120,
-                Height = 26,
-                Parent = refreshPanel
-            };
-
-            _cacheStatusLabel = new Label
-            {
-                Text = "",
-                AutoSizeWidth = true,
-                Height = 26,
-                VerticalAlignment = VerticalAlignment.Middle,
-                TextColor = InfoColor,
-                Parent = refreshPanel
-            };
-
-            _refreshButton.Click += OnRefreshButtonClick;
-        }
-
-        private void BuildSettingsEntries()
-        {
-            var settingsContainer = new FlowPanel
-            {
-                Width = _settingsPanel.ContentRegion.Width - 20,
+                Title = "OPUS Guild Authentication",
+                Width = _settingsPanel.ContentRegion.Width - 50,
                 HeightSizingMode = SizingMode.AutoSize,
                 FlowDirection = ControlFlowDirection.SingleTopToBottom,
-                ControlPadding = new Vector2(0, 10),
+                ControlPadding = new Vector2(0, 5),
+                OuterControlPadding = new Vector2(5, 10),
+                CanCollapse = true,
+                ShowBorder = true,
                 Parent = _settingsPanel
             };
 
             var checkboxPanel = new Panel
             {
-                Width = settingsContainer.ContentRegion.Width,
+                Width = sectionPanel.ContentRegion.Width - 10,
                 Height = 30,
-                Parent = settingsContainer
+                Parent = sectionPanel
             };
 
             _enableGuildAuthCheckbox = new Checkbox
             {
-                Text = "Enable OPUS Guild Authentication",
+                Text = "Enable Guild Authentication",
                 BasicTooltipText = "When enabled, uses your GW2 API key to verify OPUS guild membership and unlock private tabs.",
                 Checked = _moduleSettings.EnableGuildAuth,
                 Parent = checkboxPanel
@@ -114,10 +111,10 @@ namespace SongbookOfTyria.UI.Views
 
             _apiKeyPanel = new Panel
             {
-                Width = settingsContainer.ContentRegion.Width,
+                Width = sectionPanel.ContentRegion.Width - 10,
                 Height = 30,
                 Visible = _moduleSettings.EnableGuildAuth,
-                Parent = settingsContainer
+                Parent = sectionPanel
             };
 
             new Label
@@ -134,7 +131,7 @@ namespace SongbookOfTyria.UI.Views
             {
                 Text = _moduleSettings.Gw2ApiKey,
                 BasicTooltipText = "Enter your GW2 API key with 'account' permission. Get one at https://account.arena.net/applications",
-                Size = new Point(700, 27),
+                Size = new Point(500, 27),
                 Location = new Point(100, 0),
                 Parent = _apiKeyPanel
             };
@@ -147,45 +144,36 @@ namespace SongbookOfTyria.UI.Views
                 Height = 26,
                 TextColor = InfoColor,
                 Visible = _moduleSettings.EnableGuildAuth,
-                Parent = settingsContainer
+                Parent = sectionPanel
             };
         }
 
-        private void BuildAuthStatusSection()
+        private void BuildKeybindSection(string title, SettingEntry<KeyBinding>[] keybinds)
         {
-        }
-
-        private async void OnRefreshButtonClick(object sender, MouseEventArgs e)
-        {
-            if (_refreshButton.Enabled == false)
+            var sectionPanel = new FlowPanel
             {
-                return;
-            }
+                Title = title,
+                Width = _settingsPanel.ContentRegion.Width - 50,
+                HeightSizingMode = SizingMode.AutoSize,
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
+                ControlPadding = new Vector2(0, 5),
+                OuterControlPadding = new Vector2(5, 10),
+                CanCollapse = true,
+                ShowBorder = true,
+                Parent = _settingsPanel
+            };
 
-            _refreshButton.Enabled = false;
-            _refreshButton.Text = "Refreshing...";
-            UpdateCacheStatus("Refreshing data...", StatusType.Info);
-
-            try
+            foreach (var keybind in keybinds)
             {
-                await _moduleSettings.RefreshDataAsync();
-                UpdateCacheStatus("Data refreshed successfully.", StatusType.Success);
+                new KeybindingAssigner(keybind.Value)
+                {
+                    KeyBindingName = keybind.DisplayName,
+                    BasicTooltipText = keybind.Description,
+                    NameWidth = 100,
+                    Width = 250,
+                    Parent = sectionPanel
+                };
             }
-            catch (Exception ex)
-            {
-                Logger.Warn($"Failed to refresh data: {ex.Message}");
-                UpdateCacheStatus("Failed to refresh data.", StatusType.Error);
-            }
-            finally
-            {
-                _refreshButton.Enabled = true;
-                _refreshButton.Text = "Refresh Data";
-            }
-        }
-
-        private void OnCacheStatusChanged(object sender, StatusChangedEventArgs e)
-        {
-            UpdateCacheStatus(e.Message, e.Type);
         }
 
         private void OnAuthStatusChanged(object sender, StatusChangedEventArgs e)
@@ -215,13 +203,6 @@ namespace SongbookOfTyria.UI.Views
             }
         }
 
-        private void UpdateCacheStatus(string message, StatusType type)
-        {
-            if (_cacheStatusLabel == null) return;
-            _cacheStatusLabel.Text = message;
-            _cacheStatusLabel.TextColor = GetColorForStatus(type);
-        }
-
         private void UpdateAuthStatus(string message, StatusType type)
         {
             if (_authStatusLabel == null) return;
@@ -246,11 +227,6 @@ namespace SongbookOfTyria.UI.Views
 
         protected override void Unload()
         {
-            if (_refreshButton != null)
-            {
-                _refreshButton.Click -= OnRefreshButtonClick;
-            }
-
             if (_enableGuildAuthCheckbox != null)
             {
                 _enableGuildAuthCheckbox.CheckedChanged -= OnEnableGuildAuthCheckboxChanged;
@@ -263,7 +239,6 @@ namespace SongbookOfTyria.UI.Views
 
             if (_moduleSettings != null)
             {
-                _moduleSettings.CacheStatusChanged -= OnCacheStatusChanged;
                 _moduleSettings.AuthStatusChanged -= OnAuthStatusChanged;
             }
 

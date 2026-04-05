@@ -11,7 +11,7 @@ using Microsoft.Xna.Framework;
 
 using SongbookOfTyria.Models;
 using SongbookOfTyria.Services;
-using SongbookOfTyria.UI.Utilities;
+using SongbookOfTyria.Utilities;
 
 namespace SongbookOfTyria.UI.Controls
 {
@@ -28,8 +28,9 @@ namespace SongbookOfTyria.UI.Controls
         private readonly MusicTab _musicTab;
         private readonly TextureService _textureService;
         private readonly AsyncTexture2D _practiceModeIconTexture;
+        private EventHandler<ValueChangedEventArgs<Microsoft.Xna.Framework.Graphics.Texture2D>> _textureSwappedHandler;
+        private AsyncTexture2D _arrangerTexture;
         private bool _lastCollapsedState;
-        private bool _isHandlingResize;
 
         public event EventHandler<bool> CollapsedChanged;
 
@@ -83,9 +84,9 @@ namespace SongbookOfTyria.UI.Controls
             AddDetailRow("Released Date:", _musicTab.ReleaseDate);
             AddDetailRow("Tabbed by:", GetTabberName());
 
-            if (_musicTab.ArrangerInfo != null && _musicTab.ArrangerInfo.Count > 0)
+            if (_musicTab.TabberInfo != null && _musicTab.TabberInfo.Count > 0)
             {
-                AddArrangerPicture(_musicTab.ArrangerInfo[0]);
+                AddArrangerPicture(_musicTab.TabberInfo[0]);
             }
 
             AddViewOnWebsiteButton();
@@ -136,7 +137,7 @@ namespace SongbookOfTyria.UI.Controls
                 return _musicTab.TabbedBy;
             }
 
-            var arranger = _musicTab.ArrangerInfo?.FirstOrDefault();
+            var arranger = _musicTab.TabberInfo?.FirstOrDefault();
             if (arranger != null)
             {
                 var name = !string.IsNullOrEmpty(arranger.DisplayName) ? arranger.DisplayName : arranger.Username;
@@ -164,7 +165,7 @@ namespace SongbookOfTyria.UI.Controls
             var rowPanel = new FlowPanel
             {
                 FlowDirection = ControlFlowDirection.SingleLeftToRight,
-                Width = ThumbnailMaxWidth,
+                Width = Width,
                 HeightSizingMode = SizingMode.AutoSize,
                 ControlPadding = new Vector2(5, 0),
                 OuterControlPadding = new Vector2(15, 0),
@@ -191,45 +192,46 @@ namespace SongbookOfTyria.UI.Controls
             };
         }
 
-        private void AddArrangerPicture(ArrangerInfo arrangerInfo)
+        private void AddArrangerPicture(TabberInfo tabberInfo)
         {
-            if (string.IsNullOrEmpty(arrangerInfo.PictureUrl))
+            if (string.IsNullOrEmpty(tabberInfo.PictureUrl))
             {
                 return;
             }
 
-            var arrangerTexture = _textureService.GetRemoteTexture(arrangerInfo.PictureUrl);
-            if (arrangerTexture == null)
+            _arrangerTexture = _textureService.GetRemoteTexture(tabberInfo.PictureUrl);
+            if (_arrangerTexture == null)
             {
                 return;
             }
 
             var picturePanel = new Panel
             {
-                Width = ThumbnailMaxWidth,
+                Width = Width,
                 HeightSizingMode = SizingMode.AutoSize,
                 Parent = this
             };
 
-            var arrangerImage = new Image(arrangerTexture)
+            var arrangerImage = new Image(_arrangerTexture)
             {
                 Size = new Point(ThumbnailMaxHeight, ThumbnailMaxHeight),
                 Location = new Point(10, 10),
                 Parent = picturePanel
             };
 
-            if (arrangerTexture.HasTexture)
+            if (_arrangerTexture.HasTexture)
             {
-                UpdateArrangerImageSize(arrangerImage, picturePanel, arrangerTexture.Texture);
+                UpdateArrangerImageSize(arrangerImage, picturePanel, _arrangerTexture.Texture);
             }
 
-            arrangerTexture.TextureSwapped += (sender, e) =>
+            _textureSwappedHandler = (sender, e) =>
             {
                 if (e.NewValue != null)
                 {
                     UpdateArrangerImageSize(arrangerImage, picturePanel, e.NewValue);
                 }
             };
+            _arrangerTexture.TextureSwapped += _textureSwappedHandler;
         }
 
         private void UpdateArrangerImageSize(
@@ -306,27 +308,7 @@ namespace SongbookOfTyria.UI.Controls
 
         private void OnResized(object sender, ResizedEventArgs e)
         {
-            if (_isHandlingResize)
-            {
-                return;
-            }
-
-            _isHandlingResize = true;
-
-            try
-            {
-                Title = Collapsed ? " " : "Details";
-
-                if (Collapsed != _lastCollapsedState)
-                {
-                    _lastCollapsedState = Collapsed;
-                    CollapsedChanged?.Invoke(this, Collapsed);
-                }
-            }
-            finally
-            {
-                _isHandlingResize = false;
-            }
+            Title = Collapsed ? " " : "Details";
         }
 
         public void RebuildContent()
@@ -356,6 +338,12 @@ namespace SongbookOfTyria.UI.Controls
         protected override void DisposeControl()
         {
             Resized -= OnResized;
+
+            if (_arrangerTexture != null && _textureSwappedHandler != null)
+            {
+                _arrangerTexture.TextureSwapped -= _textureSwappedHandler;
+            }
+
             base.DisposeControl();
         }
     }

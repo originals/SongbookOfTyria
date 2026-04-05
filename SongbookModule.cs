@@ -40,7 +40,7 @@ namespace SongbookOfTyria
 
         private ApiService _apiService;
         private TextureService _textureService;
-        private TabsCacheService _tabsCacheService;
+        private TabsService _tabsService;
         private GuildAuthService _guildAuthService;
         private UserSettingsService _userSettingsService;
         private ModuleSettings _moduleSettings;
@@ -71,20 +71,21 @@ namespace SongbookOfTyria
             _textureService = new TextureService(ContentsManager, texturesCacheDirectory);
             _guildAuthService = new GuildAuthService();
             _apiService = new ApiService(_guildAuthService);
-            _tabsCacheService = new TabsCacheService(_apiService);
+            _tabsService = new TabsService(_apiService);
             _userSettingsService = new UserSettingsService(cacheDirectory);
 
-            _tabsCacheService.TabsLoaded += OnTabsLoaded;
+            _tabsService.TabsLoaded += OnTabsLoaded;
 
-            _moduleSettings.InitializeServices(_tabsCacheService, _textureService, _guildAuthService);
+            _moduleSettings.InitializeServices(_tabsService, _textureService, _guildAuthService);
 
             _guildAuthService.AuthStatusChanged += OnAuthStatusChanged;
 
             _mainWindow = new SongbookMainWindow(
-                _tabsCacheService,
+                _tabsService,
                 _textureService,
                 _userSettingsService,
                 _guildAuthService,
+                _moduleSettings,
                 cacheDirectory);
 
             CreateCornerIcon();
@@ -124,8 +125,14 @@ namespace SongbookOfTyria
 
         private async void OnAuthStatusChanged(object sender, GuildAuthStatusChangedEventArgs e)
         {
-            _tabsCacheService?.ClearInMemoryCache();
-            await _mainWindow?.RefreshTabListAsync();
+            if (_tabsService != null)
+            {
+                await _tabsService.RefreshTabsAsync().ConfigureAwait(false);
+            }
+            if (_mainWindow != null)
+            {
+                await _mainWindow.RefreshTabListAsync().ConfigureAwait(false);
+            }
         }
 
         public override IView GetSettingsView()
@@ -140,7 +147,7 @@ namespace SongbookOfTyria
 
         protected override void Unload()
         {
-            SafeUnsubscribe(() => _tabsCacheService.TabsLoaded -= OnTabsLoaded);
+            SafeUnsubscribe(() => _tabsService.TabsLoaded -= OnTabsLoaded);
             SafeUnsubscribe(() => _guildAuthService.AuthStatusChanged -= OnAuthStatusChanged);
 
             SafeDispose(_moduleSettings);

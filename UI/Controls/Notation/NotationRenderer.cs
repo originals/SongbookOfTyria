@@ -45,6 +45,23 @@ namespace SongbookOfTyria.UI.Controls.Notation
         private static BitmapFont _font30;
         private static BitmapFont _font32;
 
+        public static BitmapFont GetFont(int size)
+        {
+            return size switch
+            {
+                16 => _font16,
+                18 => _font18,
+                20 => _font20,
+                22 => _font22,
+                24 => _font24,
+                26 => _font26,
+                28 => _font28,
+                30 => _font30,
+                32 => _font32,
+                _ => _font18
+            };
+        }
+
         // Monospace character widths from font files (xadvance value)
         private const int CharWidth16 = 9;   // EversonMono-16.fnt xadvance
         private const int CharWidth18 = 10;  // EversonMono-18.fnt xadvance

@@ -224,14 +224,16 @@ namespace SongbookOfTyria.UI.Views.Helpers
 
         public void ClearAllCards()
         {
-            foreach (var card in _tabCards.Values)
+            var cards = _tabCards.Values.ToList();
+            _tabCards.Clear();
+            _cardsPanel?.ClearChildren();
+
+            foreach (var card in cards)
             {
                 card.CardClicked -= OnCardClicked;
                 card.FavoriteToggled -= OnFavoriteToggled;
                 card.Dispose();
             }
-            _tabCards.Clear();
-            _cardsPanel?.ClearChildren();
         }
 
         public void Dispose()
