@@ -45,10 +45,14 @@ namespace SongbookOfTyria.UI.Controls
         private GlowButton _autoScrollButton;
         private TrackBar _speedTrackBar;
         private Label _speedLabel;
+        private Checkbox _hitDetectionCheckbox;
+        private FlowPanel _hitDetectionRow;
+        private Panel _hitDetectionSpacer;
 
         private NotationFontSize _currentFontSize;
         private bool _autoScrollEnabled;
         private float _scrollSpeed;
+        private bool _hitDetectionEnabled;
         private bool _lastCollapsedState;
         private bool _isHandlingResize;
 
@@ -92,11 +96,26 @@ namespace SongbookOfTyria.UI.Controls
             }
         }
 
+        public bool HitDetectionEnabled
+        {
+            get => _hitDetectionEnabled;
+            set
+            {
+                _hitDetectionEnabled = value;
+                if (_hitDetectionCheckbox != null)
+                {
+                    _hitDetectionCheckbox.Checked = value;
+                }
+            }
+        }
+
         public event EventHandler<NotationFontSize> FontSizeChanged;
 
         public event EventHandler<bool> AutoScrollToggled;
 
         public event EventHandler<float> ScrollSpeedChanged;
+
+        public event EventHandler<bool> HitDetectionToggled;
 
         public event EventHandler<bool> CollapsedChanged;
 
@@ -106,12 +125,14 @@ namespace SongbookOfTyria.UI.Controls
             NotationFontSize initialFontSize,
             bool initialAutoScroll,
             float initialScrollSpeed,
+            bool initialHitDetection,
             Services.TextureService textureService)
         {
             _textureService = textureService;
             _currentFontSize = initialFontSize;
             _autoScrollEnabled = initialAutoScroll;
             _scrollSpeed = initialScrollSpeed > 0 ? initialScrollSpeed : DefaultScrollSpeed;
+            _hitDetectionEnabled = initialHitDetection;
             _lastCollapsedState = collapsed;
 
             ShowBorder = true;
@@ -248,12 +269,51 @@ namespace SongbookOfTyria.UI.Controls
                 Parent = speedLabelContainer
             };
 
-            new Panel
-            {
-                Width = contentWidth,
-                Height = 5,
-                Parent = this
-            };
+            //_hitDetectionRow = new FlowPanel
+            //{
+            //    FlowDirection = ControlFlowDirection.SingleLeftToRight,
+            //    Width = contentWidth,
+            //    Height = 26,
+            //    ControlPadding = new Vector2(5, 0),
+            //    Visible = false,
+            //    Parent = this
+            //};
+
+            //var hitDetectionLabelContainer = new Panel
+            //{
+            //    Width = 90,
+            //    Height = 26,
+            //    Parent = _hitDetectionRow
+            //};
+
+            //new Label
+            //{
+            //    Text = "Hit Detection:",
+            //    Font = GameService.Content.DefaultFont14,
+            //    Width = 90,
+            //    AutoSizeHeight = true,
+            //    Location = new Point(0, 2),
+            //    Parent = hitDetectionLabelContainer
+            //};
+
+            //_hitDetectionCheckbox = new Checkbox
+            //{
+            //    Text = "",
+            //    Checked = _hitDetectionEnabled,
+            //    Enabled = false,
+            //    BasicTooltipText = "Coming soon! Hit detection will show visual feedback for notes played during practice mode.",
+            //    Height = 26,
+            //    Parent = _hitDetectionRow
+            //};
+            //_hitDetectionCheckbox.CheckedChanged += OnHitDetectionCheckboxChanged;
+
+            //_hitDetectionSpacer = new Panel
+            //{
+            //    Width = contentWidth,
+            //    Height = 1,
+            //    Visible = false,
+            //    Parent = this
+            //};
         }
 
         private void OnFontSizeChanged(object sender, ValueChangedEventArgs e)
@@ -277,6 +337,42 @@ namespace SongbookOfTyria.UI.Controls
             _scrollSpeed = e.Value;
             UpdateSpeedLabel();
             ScrollSpeedChanged?.Invoke(this, _scrollSpeed);
+        }
+
+        private void OnHitDetectionCheckboxChanged(object sender, CheckChangedEvent e)
+        {
+            _hitDetectionEnabled = e.Checked;
+            HitDetectionToggled?.Invoke(this, _hitDetectionEnabled);
+        }
+
+        public void SetPracticeModeActive(bool isPracticeMode)
+        {
+            if (_hitDetectionRow != null)
+            {
+                _hitDetectionRow.Parent = null;
+            }
+
+            if (_hitDetectionSpacer != null)
+            {
+                _hitDetectionSpacer.Parent = null;
+            }
+
+            if (isPracticeMode)
+            {
+                if (_hitDetectionRow != null)
+                {
+                    _hitDetectionRow.Visible = true;
+                    _hitDetectionRow.Parent = this;
+                }
+
+                if (_hitDetectionSpacer != null)
+                {
+                    _hitDetectionSpacer.Visible = true;
+                    _hitDetectionSpacer.Parent = this;
+                }
+            }
+
+            Invalidate();
         }
 
         private void UpdateSpeedLabel()
@@ -309,6 +405,13 @@ namespace SongbookOfTyria.UI.Controls
                 _speedTrackBar.ValueChanged -= OnSpeedTrackBarChanged;
             }
 
+            if (_hitDetectionCheckbox != null)
+            {
+                _hitDetectionCheckbox.CheckedChanged -= OnHitDetectionCheckboxChanged;
+            }
+
+            DisposeOrphanedControls();
+
             var children = Children.ToArray();
             foreach (var child in children)
             {
@@ -320,6 +423,9 @@ namespace SongbookOfTyria.UI.Controls
             _autoScrollButton = null;
             _speedTrackBar = null;
             _speedLabel = null;
+            _hitDetectionCheckbox = null;
+            _hitDetectionRow = null;
+            _hitDetectionSpacer = null;
 
             BuildContent(Width);
 
@@ -349,6 +455,21 @@ namespace SongbookOfTyria.UI.Controls
             }
         }
 
+        private void DisposeOrphanedControls()
+        {
+            if (_hitDetectionRow != null && _hitDetectionRow.Parent == null)
+            {
+                _hitDetectionRow.Dispose();
+                _hitDetectionRow = null;
+            }
+
+            if (_hitDetectionSpacer != null && _hitDetectionSpacer.Parent == null)
+            {
+                _hitDetectionSpacer.Dispose();
+                _hitDetectionSpacer = null;
+            }
+        }
+
         protected override void DisposeControl()
         {
             Resized -= OnResized;
@@ -367,6 +488,13 @@ namespace SongbookOfTyria.UI.Controls
             {
                 _speedTrackBar.ValueChanged -= OnSpeedTrackBarChanged;
             }
+
+            if (_hitDetectionCheckbox != null)
+            {
+                _hitDetectionCheckbox.CheckedChanged -= OnHitDetectionCheckboxChanged;
+            }
+
+            DisposeOrphanedControls();
 
             base.DisposeControl();
         }
